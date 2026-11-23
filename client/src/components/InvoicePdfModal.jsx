@@ -5,7 +5,7 @@ import { Button } from './Button';
 import { useExportPdf } from '../hooks/useExportPdf';
 
 export const InvoicePdfModal = ({ invoice, onClose }) => {
-  const { pdfRef, exportToPdf } = useExportPdf();
+  const { pdfRef, exportToPdf, isExporting } = useExportPdf();
 
   const summary = useMemo(() => {
     if (!invoice) return null;
@@ -108,10 +108,11 @@ export const InvoicePdfModal = ({ invoice, onClose }) => {
           Đóng
         </Button>
         <Button
-          onClick={() => exportToPdf(`HoaDon_${invoice.roomNumber}_${invoice.month}.pdf`)}
-        >
-          Tải file PDF
-        </Button>
+  disabled={isExporting}
+  onClick={() => exportToPdf(`HoaDon_${invoice.roomNumber}_${invoice.month}.pdf`)}
+>
+  {isExporting ? 'Đang xuất PDF...' : 'Tải file PDF'}
+</Button>
       </div>
     </Modal>
   );
