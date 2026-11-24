@@ -1,8 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
-  addRoom,
-  updateRoom,
+  saveRoom,
   createContractForRoom,
   endContractForRoom,
   markInvoicePaid,
@@ -32,6 +31,7 @@ export const LandlordPage = () => {
   const [editingRoom, setEditingRoom] = useState(null);
   const [contractRoom, setContractRoom] = useState(null);
   const [pdfInvoice, setPdfInvoice] = useState(null);
+  const [actionError, setActionError] = useState('');
 
   const stats = useMemo(() => {
     const vacantCount = rooms.filter((r) => r.status === 'Trống').length;
@@ -64,13 +64,24 @@ export const LandlordPage = () => {
     });
   }, [rooms, filters]);
 
-  const handleSaveRoom = (roomData) => {
-    if (editingRoom) {
-      dispatch(updateRoom(roomData));
-    } else {
-      dispatch(addRoom(roomData));
+  // Chạy một thao tác ghi; lỗi từ server hiện thành banner ở đầu trang
+  const runAction = async (thunkAction) => {
+    setActionError('');
+    try {
+      await dispatch(thunkAction).unwrap();
+    } catch (err) {
+      setActionError(err?.message || 'Thao tác thất bại.');
     }
+  };
+
+  // Hai hàm dưới ném lỗi lên để modal tự hiện lỗi và không đóng
+  const handleSaveRoom = async (roomData) => {
+    await dispatch(saveRoom(roomData)).unwrap();
     setEditingRoom(null);
+  };
+
+  const handleCreateContract = async (payload) => {
+    await dispatch(createContractForRoom(payload)).unwrap();
   };
 
   return (
@@ -91,6 +102,15 @@ export const LandlordPage = () => {
           + Thêm phòng mới
         </Button>
       </div>
+
+      {actionError && (
+        <p
+          role="alert"
+          className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+        >
+          {actionError}
+        </p>
+      )}
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -147,7 +167,7 @@ export const LandlordPage = () => {
                     room.status === 'Đang thuê' && (
                       <Button
                         variant="danger"
-                        onClick={() => dispatch(endContractForRoom(room.id))}
+                        onClick={() => runAction(endContractForRoom(room.id))}
                       >
                         Kết thúc HĐ
                       </Button>
@@ -176,7 +196,7 @@ export const LandlordPage = () => {
                 aria-label={`Trạng thái sửa chữa ${rep.roomNumber}`}
                 value={rep.status}
                 onChange={(e) =>
-                  dispatch(updateRepairStatus({ id: rep.id, status: e.target.value }))
+                  runAction(updateRepairStatus({ id: rep.id, status: e.target.value }))
                 }
                 className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
               >
@@ -194,7 +214,7 @@ export const LandlordPage = () => {
         <InvoiceTable
           invoices={invoices}
           isLandlord
-          onMarkPaid={(id) => dispatch(markInvoicePaid(id))}
+          onMarkPaid={(id) => runAction(markInvoicePaid(id))}
           onOpenPdf={(inv) => setPdfInvoice(inv)}
         />
       </section>
@@ -213,7 +233,7 @@ export const LandlordPage = () => {
         isOpen={Boolean(contractRoom)}
         room={contractRoom}
         onClose={() => setContractRoom(null)}
-        onCreateContract={(payload) => dispatch(createContractForRoom(payload))}
+        onCreateContract={handleCreateContract}
       />
 
       <InvoicePdfModal invoice={pdfInvoice} onClose={() => setPdfInvoice(null)} />

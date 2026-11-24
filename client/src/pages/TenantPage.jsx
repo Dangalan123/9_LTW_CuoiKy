@@ -2,7 +2,6 @@
 import { useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { addRepairRequest } from '../store/appSlice';
-import { useAuth } from '../context/AuthContext';
 import { InvoiceTable } from '../components/InvoiceTable';
 import { InvoicePdfModal } from '../components/InvoicePdfModal';
 import { RepairFormModal } from '../components/RepairFormModal';
@@ -10,26 +9,16 @@ import { Button } from '../components/Button';
 
 export const TenantPage = () => {
   const dispatch = useDispatch();
-  const { user } = useAuth();
-  const { rooms, invoices, repairs } = useSelector((state) => state.app);
+  const { rooms, invoices, repairs, me, loaded } = useSelector((state) => state.app);
 
   const [repairModalOpen, setRepairModalOpen] = useState(false);
   const [pdfInvoice, setPdfInvoice] = useState(null);
 
-  const myRoom = useMemo(
-    () => rooms.find((r) => r.id === user?.roomId) || rooms.find((r) => r.status === 'Đang thuê'),
-    [rooms, user]
-  );
-
-  const myInvoices = useMemo(() => {
-    if (!myRoom) return [];
-    return invoices.filter((inv) => inv.roomId === myRoom.id);
-  }, [invoices, myRoom]);
-
-  const myRepairs = useMemo(() => {
-    if (!myRoom) return [];
-    return repairs.filter((rep) => rep.roomNumber === myRoom.roomNumber);
-  }, [repairs, myRoom]);
+  // Phòng của tôi theo dữ liệu mới nhất từ server (chủ trọ có thể vừa gán/đổi phòng).
+  // Hóa đơn và yêu cầu sửa chữa đã được server lọc riêng cho phòng này.
+  const myRoom = useMemo(() => rooms.find((r) => r.id === me?.roomId) || null, [rooms, me]);
+  const myInvoices = invoices;
+  const myRepairs = repairs;
 
   return (
     <div className="space-y-8">
@@ -42,8 +31,16 @@ export const TenantPage = () => {
             Xem hóa đơn hàng tháng, tải file PDF và gửi yêu cầu sửa chữa.
           </p>
         </div>
-        <Button onClick={() => setRepairModalOpen(true)}>+ Gửi yêu cầu sửa chữa</Button>
+        <Button disabled={!myRoom} onClick={() => setRepairModalOpen(true)}>
+          + Gửi yêu cầu sửa chữa
+        </Button>
       </div>
+
+      {loaded && !myRoom && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+          Tài khoản của bạn đã được duyệt nhưng chưa được gán phòng. Vui lòng liên hệ chủ trọ.
+        </p>
+      )}
 
       {myRoom && (
         <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-3 dark:border-slate-800 dark:bg-slate-900">
@@ -102,16 +99,8 @@ export const TenantPage = () => {
 
       <RepairFormModal
         isOpen={repairModalOpen}
-        roomNumber={myRoom?.roomNumber || ''}
         onClose={() => setRepairModalOpen(false)}
-        onSubmitRepair={(item) =>
-          dispatch(
-            addRepairRequest({
-              ...item,
-              tenantName: user?.name || myRoom?.tenantName || 'Người thuê',
-            })
-          )
-        }
+        onSubmitRepair={(item) => dispatch(addRepairRequest(item)).unwrap()}
       />
 
       <InvoicePdfModal invoice={pdfInvoice} onClose={() => setPdfInvoice(null)} />

@@ -1,193 +1,102 @@
 // src/store/appSlice.js
-import { createSlice } from '@reduxjs/toolkit';
+// Redux giữ bản sao dữ liệu lấy từ API. Mỗi thao tác ghi: gọi API -> tải lại dữ liệu.
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api, { getApiError, getStoredSession } from '../api/axiosClient';
 
 const initialState = {
-  rooms: [
-    {
-      id: 'R101',
-      buildingName: 'Dãy A',
-      roomNumber: 'P.101',
-      area: 28,
-      price: 3500000,
-      status: 'Đang thuê',
-      tenantName: 'Nguyễn Văn An',
-      oldElectric: 1200,
-      oldWater: 45,
-      electricPrice: 3500,
-      waterPrice: 20000,
-      serviceFee: 150000,
-      description: 'Phòng có gác lửng, ban công thoáng mát, gần trường.',
-    },
-    {
-      id: 'R102',
-      buildingName: 'Dãy A',
-      roomNumber: 'P.102',
-      area: 22,
-      price: 2800000,
-      status: 'Trống',
-      tenantName: '',
-      oldElectric: 850,
-      oldWater: 30,
-      electricPrice: 3500,
-      waterPrice: 20000,
-      serviceFee: 120000,
-      description: 'Phòng tiêu chuẩn, giờ giấc tự do, có chỗ để xe.',
-    },
-    {
-      id: 'R201',
-      buildingName: 'Dãy B',
-      roomNumber: 'P.201',
-      area: 32,
-      price: 4200000,
-      status: 'Đang thuê',
-      tenantName: 'Trần Thị Bình',
-      oldElectric: 2100,
-      oldWater: 78,
-      electricPrice: 3500,
-      waterPrice: 20000,
-      serviceFee: 150000,
-      description: 'Phòng rộng có cửa sổ lớn, điều hòa, nóng lạnh đầy đủ.',
-    },
-  ],
-  invoices: [
-    {
-      id: 'HD-202610-P101',
-      roomId: 'R101',
-      roomNumber: 'P.101',
-      tenantName: 'Nguyễn Văn An',
-      month: '2026-10',
-      roomPrice: 3500000,
-      oldElectric: 1120,
-      newElectric: 1200,
-      electricPrice: 3500,
-      oldWater: 40,
-      newWater: 45,
-      waterPrice: 20000,
-      serviceFee: 150000,
-      totalAmount: 3500000 + 80 * 3500 + 5 * 20000 + 150000,
-      status: 'Chưa thanh toán', // 'Chưa thanh toán' | 'Đã thu tiền'
-    },
-  ],
-  repairs: [
-    {
-      id: 'REP-1',
-      roomNumber: 'P.101',
-      tenantName: 'Nguyễn Văn An',
-      title: 'Rò rỉ vòi nước bồn rửa',
-      status: 'Mới', // 'Mới' | 'Đang xử lý' | 'Xong'
-      createdAt: '2026-11-18',
-    },
-  ],
+  rooms: [],
+  invoices: [],
+  repairs: [],
+  accounts: [], // chỉ chủ trọ mới có dữ liệu này
+  me: null, // thông tin mới nhất của người đang đăng nhập (gồm roomId)
+  loaded: false,
+  loadError: '',
 };
+
+// Tải dữ liệu theo vai trò đang đăng nhập (khách chỉ thấy danh sách phòng)
+export const loadData = createAsyncThunk('app/loadData', async (_, { rejectWithValue }) => {
+  try {
+    const role = getStoredSession()?.user?.role || null;
+
+    const [roomsRes, meRes, invoicesRes, repairsRes, accountsRes] = await Promise.all([
+      api.get('/rooms'),
+      role ? api.get('/auth/me') : null,
+      role ? api.get('/invoices') : null,
+      role ? api.get('/repairs') : null,
+      role === 'landlord' ? api.get('/accounts') : null,
+    ]);
+
+    return {
+      rooms: roomsRes.data.rooms,
+      me: meRes?.data.user || null,
+      invoices: invoicesRes?.data.invoices || [],
+      repairs: repairsRes?.data.repairs || [],
+      accounts: accountsRes?.data.accounts || [],
+    };
+  } catch (err) {
+    return rejectWithValue(getApiError(err));
+  }
+});
+
+// Tạo thunk cho thao tác ghi. Lỗi trả về dạng { message, errors } (dùng với .unwrap()).
+const mutation = (name, request) =>
+  createAsyncThunk(`app/${name}`, async (arg, { dispatch, rejectWithValue }) => {
+    try {
+      const res = await request(arg);
+      await dispatch(loadData());
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(getApiError(err));
+    }
+  });
+
+// Phòng & hợp đồng
+export const saveRoom = mutation('saveRoom', ({ id, ...body }) =>
+  id ? api.put(`/rooms/${id}`, body) : api.post('/rooms', body)
+);
+export const createContractForRoom = mutation('createContract', ({ roomId, tenantName }) =>
+  api.post(`/rooms/${roomId}/contract`, { tenantName })
+);
+export const endContractForRoom = mutation('endContract', (roomId) =>
+  api.post(`/rooms/${roomId}/end-contract`)
+);
+
+// Hóa đơn
+export const createMonthlyInvoices = mutation('createMonthlyInvoices', ({ month, items }) =>
+  api.post('/invoices/monthly', { month, items })
+);
+export const markInvoicePaid = mutation('markInvoicePaid', (id) => api.post(`/invoices/${id}/pay`));
+
+// Sửa chữa
+export const addRepairRequest = mutation('addRepair', ({ title, imageUrl }) =>
+  api.post('/repairs', { title, imageUrl })
+);
+export const updateRepairStatus = mutation('updateRepairStatus', ({ id, status }) =>
+  api.patch(`/repairs/${id}/status`, { status })
+);
+
+// Tài khoản
+export const approveAccount = mutation('approveAccount', ({ id, roomId }) =>
+  api.post(`/accounts/${id}/approve`, { roomId })
+);
+export const rejectAccount = mutation('rejectAccount', ({ id, reason }) =>
+  api.post(`/accounts/${id}/reject`, { reason })
+);
 
 const appSlice = createSlice({
   name: 'app',
   initialState,
-  reducers: {
-    addRoom: (state, action) => {
-      state.rooms = [...state.rooms, action.payload];
-    },
-    updateRoom: (state, action) => {
-      const updated = action.payload;
-      state.rooms = state.rooms.map((room) =>
-        room.id === updated.id ? { ...room, ...updated } : room
-      );
-    },
-    createContractForRoom: (state, action) => {
-      const { roomId, tenantName } = action.payload;
-      state.rooms = state.rooms.map((room) =>
-        room.id === roomId && room.status === 'Trống'
-          ? { ...room, status: 'Đang thuê', tenantName }
-          : room
-      );
-    },
-    endContractForRoom: (state, action) => {
-      const roomId = action.payload;
-      state.rooms = state.rooms.map((room) =>
-        room.id === roomId
-          ? { ...room, status: 'Trống', tenantName: '' }
-          : room
-      );
-    },
-    createMonthlyInvoices: (state, action) => {
-      const { month, items } = action.payload;
-      const newInvoices = [];
-
-      const updatedRooms = state.rooms.map((room) => {
-        const entry = items.find((item) => item.roomId === room.id);
-        if (!entry) return room;
-
-        const alreadyExists = state.invoices.some(
-          (inv) => inv.roomId === room.id && inv.month === month
-        );
-
-        if (!alreadyExists) {
-          const elecUsed = Math.max(0, Number(entry.newElectric) - room.oldElectric);
-          const waterUsed = Math.max(0, Number(entry.newWater) - room.oldWater);
-          const totalAmount =
-            room.price +
-            elecUsed * room.electricPrice +
-            waterUsed * room.waterPrice +
-            room.serviceFee;
-
-          newInvoices.push({
-            id: `HD-${month.replace('-', '')}-${room.roomNumber.replace('.', '')}`,
-            roomId: room.id,
-            roomNumber: room.roomNumber,
-            tenantName: room.tenantName || 'Khách thuê',
-            month,
-            roomPrice: room.price,
-            oldElectric: room.oldElectric,
-            newElectric: Number(entry.newElectric),
-            electricPrice: room.electricPrice,
-            oldWater: room.oldWater,
-            newWater: Number(entry.newWater),
-            waterPrice: room.waterPrice,
-            serviceFee: room.serviceFee,
-            totalAmount,
-            status: 'Chưa thanh toán',
-          });
-        }
-
-        return {
-          ...room,
-          oldElectric: Number(entry.newElectric),
-          oldWater: Number(entry.newWater),
-        };
+  reducers: {},
+  extraReducers: (builder) => {
+    builder
+      .addCase(loadData.fulfilled, (state, action) => {
+        Object.assign(state, action.payload, { loaded: true, loadError: '' });
+      })
+      .addCase(loadData.rejected, (state, action) => {
+        state.loaded = true;
+        state.loadError = action.payload?.message || 'Không tải được dữ liệu.';
       });
-
-      state.rooms = updatedRooms;
-      if (newInvoices.length > 0) {
-        state.invoices = [...newInvoices, ...state.invoices];
-      }
-    },
-    markInvoicePaid: (state, action) => {
-      const invoiceId = action.payload;
-      state.invoices = state.invoices.map((inv) =>
-        inv.id === invoiceId ? { ...inv, status: 'Đã thu tiền' } : inv
-      );
-    },
-    addRepairRequest: (state, action) => {
-      state.repairs = [action.payload, ...state.repairs];
-    },
-    updateRepairStatus: (state, action) => {
-      const { id, status } = action.payload;
-      state.repairs = state.repairs.map((item) =>
-        item.id === id ? { ...item, status } : item
-      );
-    },
   },
 });
-
-export const {
-  addRoom,
-  updateRoom,
-  createContractForRoom,
-  endContractForRoom,
-  createMonthlyInvoices,
-  markInvoicePaid,
-  addRepairRequest,
-  updateRepairStatus,
-} = appSlice.actions;
 
 export default appSlice.reducer;
