@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useCallback } from 'react';
+import { SESSION_KEY } from '../api/axiosClient';
 
 const AuthContext = createContext(null);
-const STORAGE_KEY = 'nt_auth_session';
+const STORAGE_KEY = SESSION_KEY;
 
 const readStoredSession = () => {
   try {

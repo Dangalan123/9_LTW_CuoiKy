@@ -6,6 +6,10 @@ export const RoomDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const room = useSelector((state) => state.app.rooms.find((r) => r.id === id));
+  const loaded = useSelector((state) => state.app.loaded);
+  if (!loaded) {
+    return <p className="text-sm text-slate-500">Đang tải thông tin phòng...</p>;
+  }
 
   if (!room) {
     return (

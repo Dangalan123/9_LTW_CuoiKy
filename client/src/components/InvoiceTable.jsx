@@ -32,7 +32,7 @@ export const InvoiceTable = ({
             const isPaid = inv.status === 'Đã thu tiền';
             return (
               <tr key={inv.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                <td className="px-4 py-3 font-medium">{inv.id}</td>
+                <td className="px-4 py-3 font-medium">{inv.code}</td>
                 <td className="px-4 py-3">{`${inv.roomNumber} - ${inv.tenantName}`}</td>
                 <td className="px-4 py-3">{inv.month}</td>
                 <td className="px-4 py-3 text-right font-semibold text-indigo-600 dark:text-indigo-400">

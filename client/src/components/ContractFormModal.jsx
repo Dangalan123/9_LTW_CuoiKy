@@ -21,7 +21,7 @@ export const ContractFormModal = ({ isOpen, room, onClose, onCreateContract }) =
 
   const isOccupied = room.status !== 'Trống';
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (isOccupied) {
@@ -34,13 +34,17 @@ export const ContractFormModal = ({ isOpen, room, onClose, onCreateContract }) =
       return;
     }
 
-    onCreateContract({
-      roomId: room.id,
-      tenantName: tenantName.trim(),
-      phone: phone.trim(),
-      startDate,
-    });
-    onClose();
+    try {
+      await onCreateContract({
+        roomId: room.id,
+        tenantName: tenantName.trim(),
+        phone: phone.trim(),
+        startDate,
+      });
+      onClose();
+    } catch (err) {
+      setError(err?.message || 'Không tạo được hợp đồng.');
+    }
   };
 
   return (

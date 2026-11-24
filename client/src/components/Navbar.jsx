@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Button } from './Button';
@@ -16,6 +17,21 @@ export const Navbar = () => {
   const { darkMode, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+    const pendingCount = useSelector(
+    (state) =>
+      state.app.accounts.filter((a) => a.role === 'tenant' && a.status === 'Chờ duyệt').length
+  );
+
+  const accountsLabel = (
+    <>
+      Duyệt tài khoản
+      {pendingCount > 0 && (
+        <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.5 text-xs font-semibold text-white">
+          {pendingCount}
+        </span>
+      )}
+    </>
+  );
 
   const handleLogout = () => {
     logout();
@@ -42,6 +58,9 @@ export const Navbar = () => {
               </NavLink>
               <NavLink to="/landlord/billing" className={linkClass}>
                 Hóa đơn & Điện nước
+              </NavLink>
+              <NavLink to="/landlord/accounts" className={linkClass}>
+                {accountsLabel}
               </NavLink>
             </>
           )}
@@ -71,9 +90,15 @@ export const Navbar = () => {
               </Button>
             </div>
           ) : (
-            <Link to="/login">
-              <Button>Đăng nhập</Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to="/register" className="hidden sm:block">
+                <Button variant="secondary">Đăng ký</Button>
+              </Link>
+              <Link to="/login">
+                <Button>Đăng nhập</Button>
+              </Link>
+            </div>
+            
           )}
 
           <button
@@ -107,6 +132,13 @@ export const Navbar = () => {
                 onClick={() => setMenuOpen(false)}
               >
                 Hóa đơn & Điện nước
+              </NavLink>
+              <NavLink
+                to="/landlord/accounts"
+                className={linkClass}
+                onClick={() => setMenuOpen(false)}
+              >
+                {accountsLabel}
               </NavLink>
             </>
           )}

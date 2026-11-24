@@ -20,6 +20,7 @@ const EMPTY_FORM = {
 export const RoomFormModal = ({ isOpen, initialRoom = null, onClose, onSubmitRoom }) => {
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -29,6 +30,7 @@ export const RoomFormModal = ({ isOpen, initialRoom = null, onClose, onSubmitRoo
       setForm(EMPTY_FORM);
     }
     setErrors({});
+    setSubmitting(false);
   }, [isOpen, initialRoom]);
 
   const handleChange = (field, value) => {
@@ -45,7 +47,7 @@ export const RoomFormModal = ({ isOpen, initialRoom = null, onClose, onSubmitRoo
     return nextErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const validationErrors = validate();
     if (Object.keys(validationErrors).length > 0) {
@@ -53,9 +55,11 @@ export const RoomFormModal = ({ isOpen, initialRoom = null, onClose, onSubmitRoo
       return;
     }
 
-    onSubmitRoom({
+    setSubmitting(true);
+    try {
+      await onSubmitRoom({
       ...form,
-      id: initialRoom?.id || `R-${Date.now()}`,
+      id: initialRoom?.id,
       area: Number(form.area),
       price: Number(form.price),
       oldElectric: Number(form.oldElectric) || 0,
@@ -63,9 +67,12 @@ export const RoomFormModal = ({ isOpen, initialRoom = null, onClose, onSubmitRoo
       electricPrice: Number(form.electricPrice) || 3500,
       waterPrice: Number(form.waterPrice) || 20000,
       serviceFee: Number(form.serviceFee) || 0,
-      tenantName: form.status === 'Trống' ? '' : form.tenantName || '',
-    });
-    onClose();
+      });
+      onClose();
+    } catch (err) {
+      setErrors({ ...(err?.errors || {}), form: err?.message || 'Không lưu được phòng.' });
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -166,11 +173,15 @@ export const RoomFormModal = ({ isOpen, initialRoom = null, onClose, onSubmitRoo
           onChange={(e) => handleChange('description', e.target.value)}
         />
 
+        {errors.form && <p className="text-sm text-rose-500">{errors.form}</p>}
+
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" onClick={onClose}>
             Hủy
           </Button>
-          <Button type="submit">{initialRoom ? 'Lưu thay đổi' : 'Tạo phòng'}</Button>
+          <Button type="submit" disabled={submitting}>
+            {initialRoom ? 'Lưu thay đổi' : 'Tạo phòng'}
+          </Button>
         </div>
       </form>
     </Modal>

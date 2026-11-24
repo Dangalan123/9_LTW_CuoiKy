@@ -16,7 +16,7 @@ export const BillingPage = () => {
     [rooms]
   );
 
-  const [month, setMonth] = useState('2026-11');
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [readings, setReadings] = useState({});
   const [rowErrors, setRowErrors] = useState({});
   const [feedback, setFeedback] = useState('');
@@ -52,7 +52,7 @@ export const BillingPage = () => {
     setFeedback('');
   };
 
-  const handleGenerateInvoices = (e) => {
+  const handleGenerateInvoices = async (e) => {
     e.preventDefault();
     const nextErrors = {};
     let hasError = false;
@@ -88,8 +88,21 @@ export const BillingPage = () => {
       newWater: Number(readings[room.id].newWater),
     }));
 
-    dispatch(createMonthlyInvoices({ month, items: payloadItems }));
-    setFeedback(`Đã xử lý chỉ số và phát hành hóa đơn tháng ${month}.`);
+    try {
+      const result = await dispatch(createMonthlyInvoices({ month, items: payloadItems })).unwrap();
+      const skipped = result.skipped?.length
+        ? ` Bỏ qua ${result.skipped.join(', ')} vì đã có hóa đơn tháng này.`
+        : '';
+      setFeedback(`Đã phát hành ${result.invoices.length} hóa đơn tháng ${month}.${skipped}`);
+    } catch (err) {
+      // Server kiểm tra lại chỉ số và trả lỗi theo từng phòng (key là id phòng)
+      const perRoom = {};
+      Object.entries(err?.errors || {}).forEach(([roomId, rowErr]) => {
+        if (rowErr && typeof rowErr === 'object') perRoom[roomId] = rowErr;
+      });
+      setRowErrors(perRoom);
+      setFeedback(err?.message || 'Không phát hành được hóa đơn.');
+    }
   };
 
   return (

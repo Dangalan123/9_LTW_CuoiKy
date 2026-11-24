@@ -5,6 +5,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { GuestRoomsPage } from './pages/GuestRoomsPage';
 import { RoomDetailPage } from './pages/RoomDetailPage';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { AccountsPage } from './pages/AccountsPage';
 import { LandlordPage } from './pages/LandlordPage';
 import { BillingPage } from './pages/BillingPage';
 import { TenantPage } from './pages/TenantPage';
@@ -18,10 +20,12 @@ export const App = () => {
           <Route index element={<GuestRoomsPage />} />
           <Route path="rooms/:id" element={<RoomDetailPage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route path="register" element={<RegisterPage />} />
 
           <Route element={<ProtectedRoute allowedRoles={['landlord']} />}>
             <Route path="landlord" element={<LandlordPage />} />
             <Route path="landlord/billing" element={<BillingPage />} />
+            <Route path="landlord/accounts" element={<AccountsPage />} />
           </Route>
 
           <Route element={<ProtectedRoute allowedRoles={['tenant']} />}>

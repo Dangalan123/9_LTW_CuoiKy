@@ -36,7 +36,7 @@ export const InvoicePdfModal = ({ invoice, onClose }) => {
             <h3 className="text-xl font-bold uppercase text-indigo-700">
               Hóa đơn thanh toán tiền trọ
             </h3>
-            <p className="text-xs text-slate-500">{`Mã hóa đơn: ${invoice.id}`}</p>
+            <p className="text-xs text-slate-500">{`Mã hóa đơn: ${invoice.code}`}</p>
             <p className="text-xs text-slate-500">{`Kỳ thanh toán: ${invoice.month}`}</p>
           </div>
           <div className="text-right text-sm">

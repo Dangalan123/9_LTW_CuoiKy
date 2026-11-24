@@ -3,7 +3,9 @@ import { Modal } from './Modal';
 import { InputField } from './InputField';
 import { Button } from './Button';
 
-export const RepairFormModal = ({ isOpen, roomNumber = '', onClose, onSubmitRepair }) => {
+const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024;
+
+export const RepairFormModal = ({ isOpen, onClose, onSubmitRepair }) => {
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [error, setError] = useState('');
@@ -18,6 +20,11 @@ export const RepairFormModal = ({ isOpen, roomNumber = '', onClose, onSubmitRepa
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError('Ảnh quá lớn, vui lòng chọn ảnh dưới 1.5MB.');
+      e.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       setImageUrl(String(reader.result || ''));
@@ -25,22 +32,19 @@ export const RepairFormModal = ({ isOpen, roomNumber = '', onClose, onSubmitRepa
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) {
       setError('Vui lòng mô tả vấn đề cần sửa chữa.');
       return;
     }
 
-    onSubmitRepair({
-      id: `REP-${Date.now()}`,
-      roomNumber,
-      title: title.trim(),
-      imageUrl,
-      status: 'Mới',
-      createdAt: new Date().toISOString().slice(0, 10),
-    });
-    onClose();
+    try {
+      await onSubmitRepair({ title: title.trim(), imageUrl });
+      onClose();
+    } catch (err) {
+      setError(err?.message || 'Không gửi được yêu cầu.');
+    }
   };
 
   return (
