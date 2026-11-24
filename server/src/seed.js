@@ -1,4 +1,3 @@
-// Chạy: npm run seed — xóa và nạp lại dữ liệu mẫu (CHỈ dùng khi phát triển)
 require('dotenv').config();
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
